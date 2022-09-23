@@ -5,58 +5,57 @@ declare const EXAMPLE_KV_LOCAL: KVNamespace
 const server = createServer({
   schema: {
     typeDefs: /* GraphQL */ `
-      scalar File
-      scalar JSON
+      type Post {
+        id: ID!
+        title: String!
+        content: String!
+      }
       type Query {
-        todoList(limit: Int = 10, cursor: String): TodoList
+        getPost(id: ID!): Post
+        listPosts: [Post]!
       }
       type Mutation {
-        addTodo(id: ID, content: String, expiration: Int): ID
-        deleteTodo(id: ID): Boolean
+        addPost(input: PostInput): Post
+        deletePost(id: ID): Boolean
       }
       type Subscription {
-        time(id: ID): String
+        onPostChange(id: ID): Post
       }
-      type TodoList {
-        keys: [TodoKeyInfo]
-        list_complete: Boolean
-        cursor: String
-      }
-      type TodoKeyInfo {
-        name: String
-        expiration: Int
-        value: String
+      input PostInput {
+        id: ID
+        title: String
+        content: String
       }
     `,
     resolvers: {
       Query: {
-        todoList: async (_, { limit = 10, cursor }) =>
-				EXAMPLE_KV_LOCAL.list({
-            limit,
-            cursor,
-          }),
-        readFileAsText: (root, args) => EXAMPLE_KV_LOCAL.get(args.name, 'text'),
-        readFileAsJson: (root, args) => EXAMPLE_KV_LOCAL.get(args.name, 'json'),
-      },
-      TodoKeyInfo: {
-        value: ({ name }: any) => EXAMPLE_KV_LOCAL.get(name, 'text'),
+        getPost: async (_, { id }) => {
+          const post = await EXAMPLE_KV_LOCAL.get(id)
+          console.log(post)
+          if (post) {
+            return JSON.parse(post)
+          }
+          return null;
+        },
+        listPosts: async () => {
+          const posts = await EXAMPLE_KV_LOCAL.list();
+          return posts.keys.map(key => JSON.parse(key as any))
+        }
       },
       Mutation: {
-        addTodo: async (_, { id, content }) => {
-					try {
-						await EXAMPLE_KV_LOCAL.put(id, content)
-          	return id
-					} catch (e) {
-						console.log(e)
-					}
+        addPost: async (_, { input }) => {
+          const { id, title, content } = input
+          const post = { id, title, content }
+          await EXAMPLE_KV_LOCAL.put(id, JSON.stringify(post))
+          return post
         },
-        deleteTodo: (_, { id }) => {
-          EXAMPLE_KV_LOCAL.delete(`${id}`)
+        deletePost: async (_, { id }) => {
+          await EXAMPLE_KV_LOCAL.delete(id)
           return true
-        },
+        }
       },
       Subscription: {
-        time: {
+        onPostChange: {
           subscribe: async function* (_, { id }) {
             let currentVal = await EXAMPLE_KV_LOCAL.get(id);
             let subscriptionTime = 0;
@@ -64,7 +63,7 @@ const server = createServer({
               await new Promise(resolve => setTimeout(resolve, 5000, null))
               const newVal = await EXAMPLE_KV_LOCAL.get(id);
               if (newVal !== currentVal) {
-                yield { time: JSON.stringify({ currentVal, newVal }) }
+                yield { onDeletePost: JSON.parse(currentVal as any) }
               }
               subscriptionTime++;
             }
