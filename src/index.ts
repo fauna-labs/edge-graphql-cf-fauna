@@ -17,6 +17,7 @@ const server = createServer({
       type Mutation {
         addPost(input: PostInput): Post
         deletePost(id: ID): Boolean
+        updatePost(id: ID, input: PostInput): Post
       }
       type Subscription {
         onPostChange(id: ID): Post
@@ -31,15 +32,21 @@ const server = createServer({
       Query: {
         getPost: async (_, { id }) => {
           const post = await EXAMPLE_KV_LOCAL.get(id)
-          console.log(post)
           if (post) {
             return JSON.parse(post)
           }
           return null;
         },
         listPosts: async () => {
-          const posts = await EXAMPLE_KV_LOCAL.list();
-          return posts.keys.map(key => JSON.parse(key as any))
+          const result = [];
+          const kvStore = await EXAMPLE_KV_LOCAL.list();
+          for await (const key of kvStore.keys) {
+            const val = await EXAMPLE_KV_LOCAL.get(key.name)
+            if(val) {
+              result.push(JSON.parse(val))
+            }
+          }
+          return result;
         }
       },
       Mutation: {
@@ -52,6 +59,18 @@ const server = createServer({
         deletePost: async (_, { id }) => {
           await EXAMPLE_KV_LOCAL.delete(id)
           return true
+        },
+        updatePost: async (_, { id, input }) => {
+          const post = await EXAMPLE_KV_LOCAL.get(id)
+          if (post) {
+            const newPost = { 
+              ...JSON.parse(post), 
+              ...input
+            }
+            await EXAMPLE_KV_LOCAL.put(id, JSON.stringify(newPost))
+            return newPost
+          }
+          return null
         }
       },
       Subscription: {
