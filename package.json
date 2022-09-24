@@ -12,6 +12,7 @@
     "deploy": "wrangler publish"
   },
   "dependencies": {
-    "@graphql-yoga/common": "^2.12.12"
+    "@graphql-yoga/common": "^2.12.12",
+    "faunadb": "^4.7.0"
   }
 }

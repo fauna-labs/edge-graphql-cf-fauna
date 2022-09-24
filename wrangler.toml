@@ -5,3 +5,4 @@ kv_namespaces = [
     { binding = "EXAMPLE_KV_LOCAL", id = "ff08d3b7ee764e64a1f37196d31a3267", preview_id = "ff08d3b7ee764e64a1f37196d31a3267" }
 ]
 compatibility_flags = ["streams_enable_constructors"]
+node_compat = true

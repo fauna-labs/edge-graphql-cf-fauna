@@ -1,4 +1,14 @@
 import { createServer } from '@graphql-yoga/common'
+import * as faunadb from "faunadb";
+
+const q = faunadb.query as any;
+
+let stream: any = null;
+
+const faunaClient = new faunadb.Client({ 
+  domain: `db.us.fauna.com`,
+  secret: ``,
+});
 
 declare const EXAMPLE_KV_LOCAL: KVNamespace
 
@@ -21,6 +31,7 @@ const server = createServer({
       }
       type Subscription {
         onPostChange(id: ID): Post
+        onTest(id: ID): String
       }
       input PostInput {
         id: ID
@@ -74,6 +85,39 @@ const server = createServer({
         }
       },
       Subscription: {
+        onTest: {
+          subscribe: async function* (_, { id }) {
+            let currentSnap: any;
+            let newVersion: any;
+            const docRef = q.Ref(q.Collection('Post'), '343010020423630924');
+            if(!stream) {
+              stream = faunaClient.stream.document(docRef).on('snapshot', (snapshot: any) => {
+                currentSnap = {
+                  ts: snapshot.ts,
+                  data: snapshot.data
+                }
+              }).start();
+            } 
+            stream.on('version', (version: any) => {
+              newVersion = {
+                ts: version.document.ts,
+                data: version.document.data
+              }
+            });
+
+            let subscriptionTime = 0; // Terminate Subscription after 1000 seconds
+            
+            while (subscriptionTime < 200) {
+              await new Promise(resolve => setTimeout(resolve, 2000, null));
+              subscriptionTime++;
+              if(newVersion && newVersion.ts !== currentSnap.ts) {
+                currentSnap = newVersion;
+                yield { onTest: JSON.stringify(newVersion.data) }
+              }
+            }
+            yield { onTest: 'Disconnected' }
+          }
+        },
         onPostChange: {
           subscribe: async function* (_, { id }) {
             let currentVal = await EXAMPLE_KV_LOCAL.get(id);
