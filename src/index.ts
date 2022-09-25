@@ -1,17 +1,7 @@
 import { createServer } from '@graphql-yoga/common'
-import * as faunadb from "faunadb";
-
-const q = faunadb.query as any;
+import { faunaClient, q } from './db'
 
 let stream: any = null;
-declare const FAUNA_DOMAIN: string;
-declare const FAUNA_SECRET: string;
-
-
-const faunaClient = new faunadb.Client({ 
-  domain: FAUNA_DOMAIN,
-  secret: FAUNA_SECRET,
-});
 
 const server = createServer({
   schema: {
@@ -59,13 +49,22 @@ const server = createServer({
       },
       Mutation: {
         addPost: async (_, { input }) => {
-          return null
+          const post: any = await faunaClient.query(
+            q.Create(q.Collection("Post"), { data: input })
+          );
+          return {...post.data, id: post.ref.id};
         },
         deletePost: async (_, { id }) => {
-          return null
+          await faunaClient.query(
+            q.Delete(q.Ref(q.Collection("Post"), id))
+          );
+          return true;
         },
         updatePost: async (_, { id, input }) => {
-          return null
+          const post: any = await faunaClient.query(
+            q.Update(q.Ref(q.Collection("Post"), id), { data: input })
+          );
+          return {...post.data, id};
         }
       },
       Subscription: {
