@@ -4,7 +4,6 @@ import * as faunadb from "faunadb";
 const q = faunadb.query as any;
 
 let stream: any = null;
-declare const EXAMPLE_KV_LOCAL: KVNamespace
 declare const FAUNA_DOMAIN: string;
 declare const FAUNA_SECRET: string;
 
@@ -32,8 +31,7 @@ const server = createServer({
         updatePost(id: ID, input: PostInput): Post
       }
       type Subscription {
-        onPostChange(id: ID): Post
-        onTest(id: ID): String
+        onPostChange(id: ID): String
       }
       input PostInput {
         id: ID
@@ -44,50 +42,34 @@ const server = createServer({
     resolvers: {
       Query: {
         getPost: async (_, { id }) => {
-          const post = await EXAMPLE_KV_LOCAL.get(id)
-          if (post) {
-            return JSON.parse(post)
-          }
-          return null;
+          const post: any = await faunaClient.query(
+            q.Get(q.Ref(q.Collection("Post"), id))
+          );
+          return {...post.data, id};
         },
         listPosts: async () => {
-          const result = [];
-          const kvStore = await EXAMPLE_KV_LOCAL.list();
-          for await (const key of kvStore.keys) {
-            const val = await EXAMPLE_KV_LOCAL.get(key.name)
-            if(val) {
-              result.push(JSON.parse(val))
-            }
-          }
-          return result;
+          const posts: any = await faunaClient.query(
+            q.Map(
+              q.Paginate(q.Documents(q.Collection('Post'))),
+              q.Lambda((x: any) => q.Get(x))
+            )
+          );
+          return posts.data.map((post: any) => ({...post.data, id: post.ref.id}));
         }
       },
       Mutation: {
         addPost: async (_, { input }) => {
-          const { id, title, content } = input
-          const post = { id, title, content }
-          await EXAMPLE_KV_LOCAL.put(id, JSON.stringify(post))
-          return post
+          return null
         },
         deletePost: async (_, { id }) => {
-          await EXAMPLE_KV_LOCAL.delete(id)
-          return true
+          return null
         },
         updatePost: async (_, { id, input }) => {
-          const post = await EXAMPLE_KV_LOCAL.get(id)
-          if (post) {
-            const newPost = { 
-              ...JSON.parse(post), 
-              ...input
-            }
-            await EXAMPLE_KV_LOCAL.put(id, JSON.stringify(newPost))
-            return newPost
-          }
           return null
         }
       },
       Subscription: {
-        onTest: {
+        onPostChange: {
           subscribe: async function* (_, { id }) {
             let currentSnap: any;
             let newVersion: any;
@@ -114,27 +96,14 @@ const server = createServer({
               subscriptionTime++;
               if(newVersion && newVersion.ts !== currentSnap.ts) {
                 currentSnap = newVersion;
-                yield { onTest: JSON.stringify(newVersion.data) }
+                yield { onPostChange: JSON.stringify(newVersion.data) }
               }
             }
-            yield { onTest: 'Disconnected' }
+            await new Promise(resolve => setTimeout(resolve, 1000, null));
+            stream.close();
+            yield { onPostChange: 'Disconnected' }
           }
         },
-        onPostChange: {
-          subscribe: async function* (_, { id }) {
-            let currentVal = await EXAMPLE_KV_LOCAL.get(id);
-            let subscriptionTime = 0;
-            while (subscriptionTime < 100) {
-              await new Promise(resolve => setTimeout(resolve, 5000, null))
-              const newVal = await EXAMPLE_KV_LOCAL.get(id);
-              if (newVal !== currentVal) {
-                yield { onDeletePost: JSON.parse(currentVal as any) }
-              }
-              subscriptionTime++;
-            }
-            yield { time: 'Disconnected' }
-          }
-        }
       },
     },
   },
