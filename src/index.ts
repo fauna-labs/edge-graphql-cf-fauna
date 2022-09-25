@@ -21,7 +21,7 @@ const server = createServer({
         updatePost(id: ID, input: PostInput): Post
       }
       type Subscription {
-        onPostChange(id: ID): String
+        onPostChange(id: ID): Post
       }
       input PostInput {
         id: ID
@@ -90,12 +90,13 @@ const server = createServer({
 
             let subscriptionTime = 0; // Terminate Subscription after 1000 seconds
             
-            while (subscriptionTime < 200) {
+            while (subscriptionTime < 150) {
               await new Promise(resolve => setTimeout(resolve, 2000, null));
               subscriptionTime++;
               if(newVersion && newVersion.ts !== currentSnap.ts) {
                 currentSnap = newVersion;
-                yield { onPostChange: JSON.stringify(newVersion.data) }
+                subscriptionTime = 0; // Reset Subscription Time
+                yield { onPostChange: { ...newVersion.data, id} }
               }
             }
             await new Promise(resolve => setTimeout(resolve, 1000, null));
