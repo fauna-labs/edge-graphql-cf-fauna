@@ -72,7 +72,7 @@ const server = createServer({
           subscribe: async function* (_, { id }) {
             let currentSnap: any;
             let newVersion: any;
-            const docRef = q.Ref(q.Collection('Post'), '343010020423630924');
+            const docRef = q.Ref(q.Collection('Post'), id);
             if(!stream) {
               stream = faunaClient.stream.document(docRef).on('snapshot', (snapshot: any) => {
                 currentSnap = {
