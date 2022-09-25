@@ -4,13 +4,15 @@ import * as faunadb from "faunadb";
 const q = faunadb.query as any;
 
 let stream: any = null;
+declare const EXAMPLE_KV_LOCAL: KVNamespace
+declare const FAUNA_DOMAIN: string;
+declare const FAUNA_SECRET: string;
+
 
 const faunaClient = new faunadb.Client({ 
-  domain: `db.us.fauna.com`,
-  secret: ``,
+  domain: FAUNA_DOMAIN,
+  secret: FAUNA_SECRET,
 });
-
-declare const EXAMPLE_KV_LOCAL: KVNamespace
 
 const server = createServer({
   schema: {

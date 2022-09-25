@@ -6,3 +6,7 @@ kv_namespaces = [
 ]
 compatibility_flags = ["streams_enable_constructors"]
 node_compat = true
+
+[vars]
+FAUNA_SECRET = ""
+FAUNA_DOMAIN = "db.us.fauna.com"
